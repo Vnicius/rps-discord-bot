@@ -345,11 +345,11 @@ function handleCommand(message, server, permissions) {
     // send the list of commands
 
     message.author.send(getHelpMessage());
-  } else if (message.content.includes(defaultCommands.permission)) {
+  } else if (message.content.indexOf(defaultCommands.permission) !== -1) {
     message.channel.send(
       messages.permissionAdd + addPermission(message, permissions)
     );
-  } else if (message.content.includes(defaultCommands.removePermission)) {
+  } else if (message.content.indexOf(defaultCommands.removePermission) !== -1) {
     message.channel.send(
       messages.permissionRemove + removePermission(message, permissions)
     );
