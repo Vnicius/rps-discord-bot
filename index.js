@@ -137,13 +137,15 @@ function sendAudio(message, audio, server) {
  * @returns {Obejct}
  */
 function getServer(serverId) {
-  for (const index in servers) {
-    if (servers[index].getId() === serverId) {
-      return servers[index];
-    }
-  }
+  let server = null;
 
-  return null;
+  servers.forEach(serverObj => {
+    if (serverObj.server.getId() === serverId) {
+      server = serverObj;
+    }
+  });
+
+  return server;
 }
 
 /**
@@ -151,7 +153,34 @@ function getServer(serverId) {
  * @param {String} serverId - server's id
  */
 function setServer(serverId) {
-  servers.push(new Guild(serverId));
+  servers.push({ server: new Guild(serverId), permissions: [] });
+}
+
+function updateServerPermissions(serverId, permissions) {
+  servers.forEach(server => {
+    if (server.server.getId() === serverId) {
+      server.permissions = permissions;
+    }
+  });
+}
+
+function addPermission(message, permissions) {
+  let permissionCommand = message.content.trim().split(" ");
+  let roles = permissionCommand.slice(1);
+
+  updateServerPermissions(message.guild.id, permissions.concat(roles));
+}
+
+function removePermission(message, permissions) {
+  let permissionCommand = message.content.trim().split(" ");
+  let roles = permissionCommand.slice(1).join(" ");
+  let filtred = permissions.filter(role => !roles.includes(role));
+
+  updateServerPermissions(message.guild.id, filtred);
+}
+
+function hasPermission(member, permissions) {
+  return member.roles.some(role => permissions.includes(role.name));
 }
 
 /**
@@ -276,18 +305,7 @@ function getHelpMessage() {
   );
 }
 
-bot.on("message", message => {
-  var server = null;
-
-  if (message.guild) {
-    // check if the server is not in the list
-    if (getServer(message.guild.id) === null) {
-      // add a new server
-      setServer(message.guild.id);
-    }
-    server = getServer(message.guild.id);
-  }
-
+function handleCommand(message, server, permissions) {
   // check if is a correct command
   if (hasCommand(message.content)) {
     // check if the user is in a voice channel
@@ -323,6 +341,37 @@ bot.on("message", message => {
     // send the list of commands
 
     message.author.send(getHelpMessage());
+  } else if (message.content.includes(defaultCommands.permission)) {
+    addPermission(message, permissions);
+  } else if (message.content.includes(defaultCommands.removePermission)) {
+    removePermission(message, permissions);
+  }
+}
+
+bot.on("message", message => {
+  let server = null;
+  let permissions = [];
+
+  if (message.guild) {
+    // check if the server is not in the list
+    if (getServer(message.guild.id) === null) {
+      // add a new server
+      setServer(message.guild.id);
+    }
+    let obj = getServer(message.guild.id);
+
+    server = obj.server;
+    permissions = obj.permissions;
+  }
+
+  if (permissions.length === 0) {
+    handleCommand(message, server, permissions);
+  } else {
+    if (hasPermission(member, permissions)) {
+      handleCommand(message, server, permissions);
+    } else {
+      message.channel.send(messages.permissionDenied);
+    }
   }
 });
 
