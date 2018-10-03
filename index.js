@@ -169,6 +169,8 @@ function addPermission(message, permissions) {
   let roles = permissionCommand.slice(1);
 
   updateServerPermissions(message.guild.id, permissions.concat(roles));
+
+  return roles.join(", ");
 }
 
 function removePermission(message, permissions) {
@@ -177,6 +179,8 @@ function removePermission(message, permissions) {
   let filtred = permissions.filter(role => !roles.includes(role));
 
   updateServerPermissions(message.guild.id, filtred);
+
+  return roles.join(", ");
 }
 
 function hasPermission(member, permissions) {
@@ -342,9 +346,15 @@ function handleCommand(message, server, permissions) {
 
     message.author.send(getHelpMessage());
   } else if (message.content.includes(defaultCommands.permission)) {
-    addPermission(message, permissions);
+    message.channel.send(
+      messages.permissionAdd + addPermission(message, permissions)
+    );
   } else if (message.content.includes(defaultCommands.removePermission)) {
-    removePermission(message, permissions);
+    message.channel.send(
+      messages.permissionRemove + removePermission(message, permissions)
+    );
+  } else if (message.content === ".p") {
+    message.channel.send("Permissões: " + permissions.join(", "));
   }
 }
 
