@@ -12,11 +12,15 @@ module.exports = {
     description: "Mensagem de ajuda com os comandos"
   },
   permission: {
-    command: ".permissao",
+    command: ".addp",
     description: "Concede permissão a um tipo de membro"
   },
   removePermission: {
-    command: ".remover",
+    command: ".removep",
     description: "Remove permissão a um tipo de membro"
+  },
+  listPermission: {
+    command: ".listp",
+    description: "Listar permissões"
   }
 };

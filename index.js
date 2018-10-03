@@ -175,7 +175,7 @@ function addPermission(message, permissions) {
 
 function removePermission(message, permissions) {
   let permissionCommand = message.content.trim().split(" ");
-  let roles = permissionCommand.slice(1).join(" ");
+  let roles = permissionCommand.slice(1);
   let filtred = permissions.filter(role => !roles.includes(role));
 
   updateServerPermissions(message.guild.id, filtred);
@@ -279,33 +279,35 @@ function recursiveGetAudiosCommands(list) {
 }
 
 function getHelpMessage() {
+  let defaultCommandsList = [];
   let commands = getAudiosCommands(audioList);
   let commandsTxt = "";
 
+  Object.keys(defaultCommands).forEach(command => {
+    defaultCommandsList.push(
+      `${defaultCommands[command].command} - ${
+        defaultCommands[command].description
+      }`
+    );
+  });
+
   Object.keys(commands).forEach(commandType => {
-    let name = commandType;
-    name = name[0].toUpperCase() + name.slice(1);
+    let name = commandType[0].toUpperCase() + commandType.slice(1);
+    let commandsList = commands[commandType];
 
-    commandsTxt += `**${name}**\n\n`;
-    commands[commandType].forEach(commandName => {
-      commandsTxt += `${commandName}\n`;
-    });
+    if (commandsList.length !== 0) {
+      commandsTxt += `\n**${name}**\n \`\`\``;
+      commandsList.forEach(commandName => {
+        commandsTxt += `${commandName}\n`;
+      });
 
-    commandsTxt += "\n";
+      commandsTxt += "```";
+    }
   });
 
   return (
-    `\n**Default:**\n\n\`\`\`${defaultCommands.stay.command} - ${
-      defaultCommands.stay.description
-    }` +
-    ` \n${defaultCommands.leave.command} - ${
-      defaultCommands.leave.description
-    }` +
-    ` \n${defaultCommands.help.command} - ${
-      defaultCommands.help.description
-    } \`\`\` \n\n**Audios:** \n\n\`\`\`` +
-    commandsTxt +
-    "```"
+    `\n**Default:**\n\n\`\`\`${defaultCommandsList.join("\n")} \`\`\`` +
+    commandsTxt
   );
 }
 
@@ -346,19 +348,17 @@ function handleCommand(message, server, permissions) {
 
     message.author.send(getHelpMessage());
   } else if (message.content.includes(defaultCommands.permission.command)) {
-    console.log(message.content);
     message.channel.send(
       messages.permissionAdd + addPermission(message, permissions)
     );
   } else if (
     message.content.includes(defaultCommands.removePermission.command)
   ) {
-    console.log(message.content);
     message.channel.send(
       messages.permissionRemove + removePermission(message, permissions)
     );
-  } else if (message.content === ".p") {
-    message.channel.send("Permissões: " + permissions.join(", "));
+  } else if (message.content === defaultCommands.listPermission) {
+    message.channel.send(messages.listPermissions + permissions.join(", "));
   }
 }
 
@@ -381,10 +381,8 @@ bot.on("message", message => {
   if (permissions.length === 0) {
     handleCommand(message, server, permissions);
   } else {
-    if (hasPermission(member, permissions)) {
+    if (hasPermission(message.member, permissions)) {
       handleCommand(message, server, permissions);
-    } else {
-      message.channel.send(messages.permissionDenied);
     }
   }
 });
