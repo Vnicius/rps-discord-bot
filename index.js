@@ -355,6 +355,8 @@ function handleCommand(message, server, permissions) {
     );
   } else if (message.content === ".p") {
     message.channel.send("Permissões: " + permissions.join(", "));
+  } else {
+    message.channel.send("Nenhum comando");
   }
 }
 
