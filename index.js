@@ -338,21 +338,21 @@ function handleCommand(message, server, permissions) {
     }
   } else if (message.content === defaultCommands.stay.command) {
     // if the command is to stay in a voice channel
-
     stayInVoiceChannel(message, server);
   } else if (message.content === defaultCommands.leave.command) {
     // command to leave a voice channel
     leaveVoiceChannel(message, server);
   } else if (message.content === defaultCommands.help.command) {
     // send the list of commands
-
     message.author.send(getHelpMessage());
-  } else if (message.content.includes(defaultCommands.permission.command)) {
+  } else if (
+    message.content.indexOf(defaultCommands.permission.command) === 0
+  ) {
     message.channel.send(
       messages.permissionAdd + addPermission(message, permissions)
     );
   } else if (
-    message.content.includes(defaultCommands.removePermission.command)
+    message.content.indexOf(defaultCommands.removePermission.command) === 0
   ) {
     message.channel.send(
       messages.permissionRemove + removePermission(message, permissions)
