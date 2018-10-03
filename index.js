@@ -345,23 +345,20 @@ function handleCommand(message, server, permissions) {
     // send the list of commands
 
     message.author.send(getHelpMessage());
-  } else if (message.content.includes(defaultCommands.permission)) {
+  } else if (message.content.includes(defaultCommands.permission.command)) {
     console.log(message.content);
     message.channel.send(
       messages.permissionAdd + addPermission(message, permissions)
     );
-  } else if (message.content.indexOf(defaultCommands.removePermission) !== -1) {
+  } else if (
+    message.content.includes(defaultCommands.removePermission.command)
+  ) {
     console.log(message.content);
     message.channel.send(
       messages.permissionRemove + removePermission(message, permissions)
     );
   } else if (message.content === ".p") {
     message.channel.send("Permissões: " + permissions.join(", "));
-  } else {
-    console.log(message.content.includes(defaultCommands.permission));
-    console.log(
-      message.content.indexOf(defaultCommands.removePermission) !== -1
-    );
   }
 }
 
