@@ -1,68 +1,34 @@
 const fs = require("fs");
 const Discord = require("discord.js");
 const bot = new Discord.Client();
-const Guild = require("./guild");
+const Guild = require("./model/Guild");
 const dotenv = require("dotenv");
-const messages = require("./messages");
-const defaultCommands = require("./defaultCommands");
-const getAudios = require("./getAudios");
+const configs = require("./config");
+const defaultMessages = configs.defaultMessages;
+const defaultCommands = configs.defaultCommands;
+const getAudiosTree = require("./utils/audioUtils").getAudiosTree;
+const hasCommand = require("./utils/commandUtils").hasCommand;
 dotenv.load();
 
 var servers = [];
 
-const audioList = getAudios("audios");
-
-/**
- * Check if a message is in the list of commands
- * @param {String} command - command in the message
- * @returns {Bool}
- */
-function inList(command, list) {
-  if (list.length != 0) {
-    return list.findIndex(value => value.command === command) !== -1;
-  }
-
-  return false;
-}
-
-function recursiveInAudioList(command, list) {
-  let hasFileWithCommand = false;
-  let hasDirWithCommand = false;
-
-  if (list.files) {
-    hasFileWithCommand = inList(command, list.files);
-  }
-
-  if (list.dirs) {
-    Object.keys(list.dirs).forEach(dir => {
-      if (recursiveInAudioList(command, list.dirs[dir])) {
-        hasDirWithCommand = true;
-      }
-    });
-  }
-
-  return hasFileWithCommand || hasDirWithCommand;
-}
-
-function hasCommand(command) {
-  return recursiveInAudioList(command, audioList);
-}
+const audiosList = getAudiosTree("audios");
 
 /**
  * Search a audio in the list of audios
  * @param {String} command - get the audio infos by the command
  * @returns {Object}
  */
-function getAudioByCommand(command) {
-  return recursiveGetAudioByCommand(command, audioList);
+function getAudioByCommand(command, audiosTree) {
+  return recursiveGetAudioByCommand(command, audiosTree);
 }
 
-function getAudio(command, list) {
-  if (list.length !== 0) {
-    let index = list.findIndex(value => value.command === command);
+function getAudio(command, fileList) {
+  if (fileList.length !== 0) {
+    let index = fileList.findIndex(value => value.command === command);
 
     if (index !== -1) {
-      return list[index];
+      return fileList[index];
     } else {
       return null;
     }
@@ -71,16 +37,19 @@ function getAudio(command, list) {
   return null;
 }
 
-function recursiveGetAudioByCommand(command, list) {
+function recursiveGetAudioByCommand(command, audiosTree) {
   let audio = null;
 
-  if (list.files) {
-    audio = getAudio(command, list.files);
+  if (audiosTree.files) {
+    audio = getAudio(command, audiosTree.files);
   }
 
-  if (!audio && list.dirs) {
-    Object.keys(list.dirs).forEach(dir => {
-      let audioInDir = recursiveGetAudioByCommand(command, list.dirs[dir]);
+  if (!audio && audiosTree.dirs) {
+    Object.keys(audiosTree.dirs).forEach(dir => {
+      let audioInDir = recursiveGetAudioByCommand(
+        command,
+        audiosTree.dirs[dir]
+      );
       if (audioInDir && !audio) {
         audio = audioInDir;
       }
@@ -133,19 +102,17 @@ function sendAudio(message, audio, server) {
 
 /**
  * Search for a server in the array
- * @param {String} serverId - server's id
+ * @param {String} serverID - server's id
  * @returns {Obejct}
  */
-function getServer(serverId) {
-  let server = null;
+function getServer(serverID) {
+  let index = servers.findIndex(server => server.getId() == serverID);
 
-  servers.forEach(serverObj => {
-    if (serverObj.server.getId() === serverId) {
-      server = serverObj;
-    }
-  });
+  if (index === -1) {
+    return null;
+  }
 
-  return server;
+  return servers[index];
 }
 
 /**
@@ -153,32 +120,31 @@ function getServer(serverId) {
  * @param {String} serverId - server's id
  */
 function setServer(serverId) {
-  servers.push({ server: new Guild(serverId), permissions: [] });
+  servers.push(new Guild(serverId));
 }
 
-function updateServerPermissions(serverId, permissions) {
+function updateServerPermissions(serverID, newPermissions) {
   servers.forEach(server => {
-    if (server.server.getId() === serverId) {
-      server.permissions = permissions;
+    if (server.getId() === serverID) {
+      newPermissions.forEach(permission => server.addPermission(permission));
     }
   });
 }
 
-function addPermission(message, permissions) {
-  let permissionCommand = message.content.trim().split(" ");
+function addRolePermission(content, serverID) {
+  let permissionCommand = content.trim().split(" ");
   let roles = permissionCommand.slice(1);
 
-  updateServerPermissions(message.guild.id, permissions.concat(roles));
+  updateServerPermissions(serverID, roles);
 
   return roles.join(", ");
 }
 
-function removePermission(message, permissions) {
-  let permissionCommand = message.content.trim().split(" ");
+function removeRolePermission(content, serverID) {
+  let permissionCommand = content.trim().split(" ");
   let roles = permissionCommand.slice(1);
-  let filtred = permissions.filter(role => !roles.includes(role));
 
-  updateServerPermissions(message.guild.id, filtred);
+  updateServerPermissions(serverID, roles);
 
   return roles.join(", ");
 }
@@ -195,7 +161,7 @@ function hasPermission(member, permissions) {
 function stayInVoiceChannel(message, server) {
   // check if the user is a voice channel
   if (!message.member.voiceChannel) {
-    message.channel.send(messages.goToVoiceChannelMessage);
+    message.channel.send(defaultMessages.goToVoiceChannelMessage);
   } else {
     // get the connect
     if (!message.guild.voiceConnection) {
@@ -207,7 +173,7 @@ function stayInVoiceChannel(message, server) {
       });
     } else {
       // if is buisy in other voice channel
-      message.channel.send(messages.busyMessage);
+      message.channel.send(defaultMessages.busyMessage);
     }
   }
 }
@@ -220,7 +186,7 @@ function stayInVoiceChannel(message, server) {
 function leaveVoiceChannel(message, server) {
   // check if the user is in a voice channel
   if (!message.member.voiceChannel) {
-    message.channel.send(messages.goToVoiceChannelMessage);
+    message.channel.send(defaultMessages.goToVoiceChannelMessage);
   } else {
     // if the voice channel is the same of the user
     if (
@@ -232,7 +198,7 @@ function leaveVoiceChannel(message, server) {
       server.getConnection().disconnect();
       server.setConnection(null);
     } else {
-      message.channel.send(messages.busyMessage);
+      message.channel.send(defaultMessages.busyMessage);
     }
   }
 }
@@ -280,7 +246,7 @@ function recursiveGetAudiosCommands(list) {
 
 function getHelpMessage() {
   let defaultCommandsList = [];
-  let commands = getAudiosCommands(audioList);
+  let commands = getAudiosCommands(audiosList);
   let commandsTxt = "";
 
   Object.keys(defaultCommands).forEach(command => {
@@ -311,56 +277,78 @@ function getHelpMessage() {
   );
 }
 
-function handleCommand(message, server, permissions) {
+function handleCommand(message, server) {
   const { content, member, channel, guild, author } = message;
+  const { connection, vChannelId, id, permissions } = server;
+  const serverID = id;
+  const {
+    busyMessage,
+    goToVoiceChannelMessage,
+    permissionAddMessage,
+    permissionRemoveMessage,
+    listPermissionsMessage,
+    nonePermissionMessage
+  } = defaultMessages;
+  const {
+    stay,
+    leave,
+    help,
+    addPermission,
+    removePermission,
+    listPermissions
+  } = defaultCommands;
 
   // check if is a correct command
-  if (hasCommand(content)) {
+  if (hasCommand(content, audiosList)) {
     // check if the user is in a voice channel
     if (!member.voiceChannel) {
-      channel.send(messages.goToVoiceChannelMessage);
+      channel.send(goToVoiceChannelMessage);
     } else {
       // try to connect in the voice channel
-      if (server.getConnection()) {
+      if (connection) {
         // check if the voice channel is the same of the bot
-        if (member.voiceChannel.id === server.getVChannelId()) {
+        if (member.voiceChannel.id === vChannelId) {
           // get the audio object
-          const audio = getAudioByCommand(content);
+          const audio = getAudioByCommand(content, audiosList);
           sendAudio(message, audio, server);
         } else {
           // if the bot is in other voice channel
-          channel.send(messages.busyMessage);
+          channel.send(busyMessage);
         }
       } else if (!guild.voiceConnection) {
-        const audio = getAudioByCommand(content);
+        const audio = getAudioByCommand(content, audiosList);
         sendAudio(message, audio, server);
       } else {
-        channel.send(messages.busyMessage);
+        channel.send(busyMessage);
       }
     }
-  } else if (content === defaultCommands.stay.command) {
+  } else if (content === stay.command) {
     // if the command is to stay in a voice channel
     stayInVoiceChannel(message, server);
-  } else if (content === defaultCommands.leave.command) {
+  } else if (content === leave.command) {
     // command to leave a voice channel
     leaveVoiceChannel(message, server);
-  } else if (content === defaultCommands.help.command) {
+  } else if (content === help.command) {
     // send the list of commands
     author.send(getHelpMessage());
-  } else if (content.indexOf(defaultCommands.permission.command) === 0) {
-    channel.send(messages.permissionAdd + addPermission(message, permissions));
-  } else if (content.indexOf(defaultCommands.removePermission.command) === 0) {
+  } else if (content.indexOf(addPermission.command) === 0) {
+    channel.send(permissionAddMessage + addRolePermission(message, serverID));
+  } else if (content.indexOf(removePermission.command) === 0) {
     channel.send(
-      messages.permissionRemove + removePermission(message, permissions)
+      permissionRemoveMessage + removeRolePermission(message, serverID)
     );
-  } else if (content === defaultCommands.listPermission) {
-    channel.send(messages.listPermissions + permissions.join(", "));
+  } else if (content === listPermissions.command) {
+    if (permissions.length === 0) {
+      channel.send(nonePermissionMessage);
+    } else {
+      channel.send(listPermissionsMessage + permissions.join(", "));
+    }
   }
 }
 
 bot.on("message", message => {
   const { content, guild, member, channel } = message;
-  const { permissionDenied } = messages;
+  const { permissionDeniedMessage } = defaultMessages;
   let server = null;
   let permissions = [];
 
@@ -371,22 +359,20 @@ bot.on("message", message => {
       setServer(guild.id);
     }
     // get the server object
-    let obj = getServer(guild.id);
+    server = getServer(guild.id);
+    permissions = server.getPermissions();
 
-    server = obj.server;
-    permissions = obj.permissions;
-  }
-
-  // check if has any permission
-  if (permissions.length === 0) {
-    handleCommand(message, server, permissions);
-  } else if (hasCommand(content)) {
-    // check if the memeber has permission
-    if (hasPermission(member, permissions)) {
-      handleCommand(message, server, permissions);
-    } else if (member.user.id !== process.env.CLIENT_ID) {
-      // send the if not the bot message
-      channel.send(permissionDenied);
+    // check if has any permission
+    if (permissions.length === 0) {
+      handleCommand(message, server);
+    } else if (hasCommand(content, audiosList)) {
+      // check if the memeber has permission
+      if (hasPermission(member, permissions)) {
+        handleCommand(message, server);
+      } else if (member.user.id !== process.env.CLIENT_ID) {
+        // send the if not the bot message
+        channel.send(permissionDeniedMessage);
+      }
     }
   }
 });
