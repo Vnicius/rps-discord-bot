@@ -1,11 +1,22 @@
 const fs = require("fs");
+const Tree = require("../model/Tree");
 
-function getAudios(path) {
-  let tree = { files: [] };
+/**
+ * Get all audios in the path as object
+ * @param {String} path - path of the directory with the audios files
+ * @returns {}
+ */
+function getAudiosTree(path) {
+  let tree = new Tree();
   recursiveDirs(tree, path);
   return tree;
 }
 
+/**
+ * Mount the tree of file recursively
+ * @param {Object} tree - tree with the
+ * @param {String} path - path of the directory with the audios files
+ */
 function recursiveDirs(tree, path) {
   let files = fs.readdirSync(path);
 
@@ -28,10 +39,10 @@ function recursiveDirs(tree, path) {
         tree.dirs = {};
       }
 
-      tree.dirs[fileName] = { files: [] };
+      tree.dirs[fileName] = new Tree();
       recursiveDirs(tree["dirs"][fileName], path + "/" + fileName);
     }
   });
 }
 
-module.exports = getAudios;
+module.exports = { getAudiosTree };
