@@ -312,77 +312,80 @@ function getHelpMessage() {
 }
 
 function handleCommand(message, server, permissions) {
+  const { content, member, channel, guild, author } = message;
+
   // check if is a correct command
-  if (hasCommand(message.content)) {
+  if (hasCommand(content)) {
     // check if the user is in a voice channel
-    if (!message.member.voiceChannel) {
-      message.channel.send(messages.goToVoiceChannelMessage);
+    if (!member.voiceChannel) {
+      channel.send(messages.goToVoiceChannelMessage);
     } else {
       // try to connect in the voice channel
       if (server.getConnection()) {
         // check if the voice channel is the same of the bot
-        if (message.member.voiceChannel.id === server.getVChannelId()) {
+        if (member.voiceChannel.id === server.getVChannelId()) {
           // get the audio object
-          const audio = getAudioByCommand(message.content);
+          const audio = getAudioByCommand(content);
           sendAudio(message, audio, server);
         } else {
           // if the bot is in other voice channel
-          message.channel.send(messages.busyMessage);
+          channel.send(messages.busyMessage);
         }
-      } else if (!message.guild.voiceConnection) {
-        const audio = getAudioByCommand(message.content);
+      } else if (!guild.voiceConnection) {
+        const audio = getAudioByCommand(content);
         sendAudio(message, audio, server);
       } else {
-        message.channel.send(messages.busyMessage);
+        channel.send(messages.busyMessage);
       }
     }
-  } else if (message.content === defaultCommands.stay.command) {
+  } else if (content === defaultCommands.stay.command) {
     // if the command is to stay in a voice channel
     stayInVoiceChannel(message, server);
-  } else if (message.content === defaultCommands.leave.command) {
+  } else if (content === defaultCommands.leave.command) {
     // command to leave a voice channel
     leaveVoiceChannel(message, server);
-  } else if (message.content === defaultCommands.help.command) {
+  } else if (content === defaultCommands.help.command) {
     // send the list of commands
-    message.author.send(getHelpMessage());
-  } else if (
-    message.content.indexOf(defaultCommands.permission.command) === 0
-  ) {
-    message.channel.send(
-      messages.permissionAdd + addPermission(message, permissions)
-    );
-  } else if (
-    message.content.indexOf(defaultCommands.removePermission.command) === 0
-  ) {
-    message.channel.send(
+    author.send(getHelpMessage());
+  } else if (content.indexOf(defaultCommands.permission.command) === 0) {
+    channel.send(messages.permissionAdd + addPermission(message, permissions));
+  } else if (content.indexOf(defaultCommands.removePermission.command) === 0) {
+    channel.send(
       messages.permissionRemove + removePermission(message, permissions)
     );
-  } else if (message.content === defaultCommands.listPermission) {
-    message.channel.send(messages.listPermissions + permissions.join(", "));
+  } else if (content === defaultCommands.listPermission) {
+    channel.send(messages.listPermissions + permissions.join(", "));
   }
 }
 
 bot.on("message", message => {
+  const { content, guild, member, channel } = message;
+  const { permissionDenied } = messages;
   let server = null;
   let permissions = [];
 
-  if (message.guild) {
+  if (guild) {
     // check if the server is not in the list
-    if (getServer(message.guild.id) === null) {
+    if (getServer(guild.id) === null) {
       // add a new server
-      setServer(message.guild.id);
+      setServer(guild.id);
     }
-    let obj = getServer(message.guild.id);
+    // get the server object
+    let obj = getServer(guild.id);
 
     server = obj.server;
     permissions = obj.permissions;
   }
 
+  // check if has any permission
   if (permissions.length === 0) {
     handleCommand(message, server, permissions);
   } else {
-    if (hasPermission(message.member, permissions)) {
+    // check if the memeber has permission
+    if (hasPermission(member, permissions)) {
       handleCommand(message, server, permissions);
+    } else if (member.user.id !== process.env.CLIENT_ID) {
+      channel.send(permissionDenied);
     }
   }
 });
