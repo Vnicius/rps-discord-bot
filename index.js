@@ -380,11 +380,12 @@ bot.on("message", message => {
   // check if has any permission
   if (permissions.length === 0) {
     handleCommand(message, server, permissions);
-  } else {
+  } else if (hasCommand(content)) {
     // check if the memeber has permission
     if (hasPermission(member, permissions)) {
       handleCommand(message, server, permissions);
     } else if (member.user.id !== process.env.CLIENT_ID) {
+      // send the if not the bot message
       channel.send(permissionDenied);
     }
   }
