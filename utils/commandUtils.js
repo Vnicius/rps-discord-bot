@@ -1,4 +1,5 @@
 const Tree = require("../model/Tree");
+const defaultCommands = require("../config").defaultCommands;
 
 /**
  * Check if a message is in the list of commands
@@ -48,6 +49,18 @@ function hasCommand(command, audiosList) {
   return recursiveInAudiosList(command, audiosList);
 }
 
+/**
+ * Check if the command exist in the default commands
+ * @param {String} command - text with the command
+ * @returns {boolean} if the default command exit or not
+ */
+function hasDefaultCommand(command) {
+  return (
+    Object.keys(defaultCommands).filter(cmd => cmd.command === command) !== 0
+  );
+}
+
 module.exports = {
-  hasCommand
+  hasCommand,
+  hasDefaultCommand
 };
