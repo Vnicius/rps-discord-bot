@@ -13,11 +13,13 @@ module.exports = {
   },
   addPermission: {
     command: "!addp",
-    description: "Concede permissão a um tipo de membro"
+    description:
+      "Concede permissão a um tipo de membro. Ex: !addp Cargo1 Cargo2 CargoN"
   },
   removePermission: {
     command: "!removep",
-    description: "Remove permissão a um tipo de membro"
+    description:
+      "Remove permissão a um tipo de membro. Ex: !removep Cargo1 Cargo2 CargoN"
   },
   listPermissions: {
     command: "!listp",
