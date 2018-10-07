@@ -41,12 +41,12 @@ class Guild {
   addPermission(role) {
     const { permissions } = this;
 
-    if (permissions.findIndex(element => element === role) !== -1) {
+    if (!permissions.includes(role)) {
       this.permissions = [...this.permissions, role];
     }
   }
 
-  removePemission(role) {
+  removePermission(role) {
     const { permissions } = this;
 
     if (permissions.includes(role)) {
